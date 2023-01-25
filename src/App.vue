@@ -11,17 +11,45 @@ export default {
   },
   watch: {
     message() {
-      this.encode();
+      this.decodeOrEncode();
+    },
+    mdp() {
+      this.mdp = this.slugify(this.mdp);
+      this.decodeOrEncode();
+    },
+    messageCode() {
+      this.messageCode = this.slugify(this.messageCode);
+      this.decodeOrEncode();
     },
   },
   methods: {
     getCharAtCoord(x, y) {
       return this.alphabet[(y + x) % 26];
     },
+    getLetterFromCode(x, letter) {
+      const y = this.getAlphabetLetterIndex(letter);
+
+      let messageLetter = null;
+      if (y > x) {
+        messageLetter = this.alphabet[y - x];
+      } else if (y === x) {
+        messageLetter = "a";
+      } else {
+        messageLetter = this.alphabet[26 - x + y];
+      }
+      return messageLetter;
+    },
     getAlphabetLetterIndex(letter) {
       return parseInt(
         Object.keys(this.alphabet).find((key) => this.alphabet[key] === letter)
       );
+    },
+    decodeOrEncode() {
+      if (this.action === "code") {
+        this.encode();
+      } else {
+        this.decode();
+      }
     },
     encode() {
       let messageCode = [];
@@ -37,6 +65,30 @@ export default {
 
       this.messageCode = messageCode.join("");
     },
+    decode() {
+      let message = [];
+      const mdp = this.mdp;
+      const getAlphabetLetterIndex = this.getAlphabetLetterIndex;
+      const getLetterFromCode = this.getLetterFromCode;
+      const mdpLength = this.mdpLength;
+      [...this.messageCode].forEach(function (letter, index) {
+        const letterX = getAlphabetLetterIndex(mdp[index % mdpLength]);
+        message.push(getLetterFromCode(letterX, letter));
+      });
+
+      this.message = message.join("");
+    },
+    slugify(string) {
+      return string
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "")
+        .replace(/\W+/g, "")
+        .replace(/--+/g, "");
+    },
   },
   computed: {
     mdpLength: {
@@ -46,15 +98,7 @@ export default {
     },
     slugMessage: {
       get() {
-        return this.message
-          .toString()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, "")
-          .replace(/[^\w-]+/g, "")
-          .replace(/--+/g, "");
+        return this.slugify(this.message);
       },
     },
   },
@@ -68,17 +112,17 @@ export default {
       <h2>Ton message</h2>
 
       <form>
-        <!--      <div class="input-field">-->
-        <!--        <p class="label">Tu veux faire quoi ?</p>-->
-        <!--        <p>-->
-        <!--          <input type="radio" v-model="action" value="code" id="code" />-->
-        <!--          <label for="code">Coder un message</label>-->
-        <!--        </p>-->
-        <!--        <p>-->
-        <!--          <input type="radio" v-model="action" value="decode" id="decode" />-->
-        <!--          <label for="decode">Decoder un message</label>-->
-        <!--        </p>-->
-        <!--      </div>-->
+        <div class="input-field">
+          <p class="label">Tu veux faire quoi ?</p>
+          <p>
+            <input type="radio" v-model="action" value="code" id="code" />
+            <label for="code">Coder un message</label>
+          </p>
+          <p>
+            <input type="radio" v-model="action" value="decode" id="decode" />
+            <label for="decode">Decoder un message</label>
+          </p>
+        </div>
 
         <div class="input-field">
           <label class="label" for="mdp">Mot de passe</label>
@@ -113,7 +157,7 @@ export default {
     </table>
 
     <code v-if="messageCode">
-      {{ messageCode }}
+      {{ action === "code" ? messageCode : message }}
     </code>
 
     <h2>La table de vignère</h2>
